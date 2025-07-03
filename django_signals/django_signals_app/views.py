@@ -1,13 +1,16 @@
 from django.http import JsonResponse
 from .models import DemoModel
 import threading
+from django.db import transaction
 
 def signal_api(request):
     print("=== Before saving in API ===")
     print(f"View thread ID: {threading.get_ident()}")
-    DemoModel.objects.create(name="Triggered by API")
+    with transaction.atomic():
+        print(f"View in transaction block? {transaction.get_connection().in_atomic_block}")
+        DemoModel.objects.create(name="Triggered by API")
     print("=== After saving in API ===")
-    return JsonResponse({"message": "Check server logs!"})
+    return JsonResponse({"message": "Check server logs for transaction output!"})
 
 
 """ 
@@ -49,4 +52,30 @@ Signal thread ID: 9504
 === After saving in API ===
 
 So, see in above op we are getting a same id(9504).
+"""
+
+
+"""
+Q.3
+This API demonstrates whether Django signals run in the same database transaction as the caller.
+
+How it works:
+1. When you call this API endpoint (/api/test-signal/), it starts a transaction block and prints if it's inside a transaction.
+2. The view saves a model instance inside that transaction block, which triggers a signal.
+3. The signal handler prints whether it is inside the same transaction block.
+4. If both say True, it confirms that Django signals run inside the same transaction by default.
+
+Check your server logs for the output.
+
+o/p ->
+=== Before saving in API ===
+View thread ID: 11480
+View in transaction block? True
+=== Signal started ===
+Signal thread ID: 11480
+Signal in transaction block? True
+=== Signal finished ===
+=== After saving in API ===
+
+See both hhave given True in op.
 """
